@@ -14,8 +14,8 @@ flowchart TD
 
     subgraph L["Lambda: book-scraper"]
         direction TB
-        L1["Runtime: Python 3.10 | Timeout: 30s"]
-        L2["Memory: 128MB | Architecture: x86_64"]
+        L1["Runtime: Python 3.10<br/>Timeout: 30s"]
+        L2["Memory: 128MB<br/>Architecture: x86_64"]
     end
 
     L -->|reads| TB[("tracked_books<br/>PK: book_id")]
