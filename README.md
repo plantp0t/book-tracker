@@ -46,14 +46,11 @@ Two tables, each with a schema chosen for a specific access pattern:
   - Attributes: `url` (String), `active` (Boolean)
   - _Design rationale:_ Adding, removing, or pausing a tracked book requires no redeployment - a decision to avoid hardcoding mutable state into source.
 
-- **Why DynamoDB over RDS:** no relational structure needed between entities; most queries are simple key lookups rather than joins. On-demand capacity mode avoids provisioning overhead for low, unpredictable traffic.
-
 **Amazon EventBridge**
 Cron-based scheduler, replacing the need for a manually-triggered or externally-polled invocation.
 
 - Schedule: `cron(0 13 * * ? *)` - daily at 13:00 UTC
 - Default retry policy left unchanged (185 attempts / 24hr max age)
-- **Why EventBridge:** Provides a managed scheduling service for Lambda without requiring additional infrastructure such as an EC2 instance running cron jobs.
 
 **IAM**
 Execution role `book-scraper-role`, extended with `AmazonDynamoDBFullAccess` to permit read/write on both tables.
