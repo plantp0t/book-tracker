@@ -141,4 +141,4 @@ MIT License
 
 ## Acknowledgments
 
-Built as a learning project - including real debugging of Cloudflare bot detection, IAM permission propagation, and an SES/DMARC deliverability investigation.
+Built as a learning project
