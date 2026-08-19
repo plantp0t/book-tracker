@@ -31,7 +31,7 @@ Executes the scraping, comparison, and notification logic on each scheduled invo
 - Runtime: Python 3.10, 128MB memory, 30-second timeout
 - Dependencies (`requests`, `beautifulsoup4`) are not included in Lambda's base runtime - packaged via a custom Lambda Layer (`requests-bs4-layer`, x86_64, built with `pip install -t python/`)
 
-> **Note:** `boto3` is pre-installed in the Lambda Python runtime and requires no extra setup. `requests` and `beautifulsoup4` are not included by default — they're provided via the custom Lambda Layer described above.
+> **Note:** `boto3` is pre-installed in the Lambda Python runtime and requires no extra setup. `requests` and `beautifulsoup4` are not included by default. They're provided via the custom Lambda Layer described above.
 
 **Amazon DynamoDB**
 Two tables, each with a schema chosen for a specific access pattern:
@@ -39,12 +39,12 @@ Two tables, each with a schema chosen for a specific access pattern:
 - **`book_history`** - time-series price/stock data
   - Partition key: `book_id` (String)
   - Sort key: `date` (String, `YYYY-MM-DD`)
-  - _Design rationale:_ the composite key enables an efficient `Query` to retrieve the most recent record for a given book (`ScanIndexForward=False, Limit=1`), without reading the entire table. A single-key design was ruled out, since it would destroy historical data needed for trend comparison.
+  - _Design rationale: the composite key enables an efficient `Query` to retrieve the most recent record for a given book (`ScanIndexForward=False, Limit=1`), without reading the entire table. A single-key design was ruled out, since it would destroy historical data needed for trend comparison.
 
 - **`tracked_books`** - stores the list of books that are currently being monitored
   - Partition key: `book_id` (String)
   - Attributes: `url` (String), `active` (Boolean)
-  - _Design rationale:_ Adding, removing, or pausing a tracked book requires no redeployment - a decision to avoid hardcoding mutable state into source.
+  - Design rationale: Adding, removing, or pausing a tracked book requires no redeployment - a decision to avoid hardcoding mutable state into source.
 
 **Amazon EventBridge**
 Cron-based scheduler, replacing the need for a manually-triggered or externally-polled invocation.
@@ -55,23 +55,20 @@ Cron-based scheduler, replacing the need for a manually-triggered or externally-
 **IAM**
 Execution role `book-scraper-role`, extended with `AmazonDynamoDBFullAccess` to permit read/write on both tables.
 
-- **Known deviation from least-privilege:** a scoped custom policy (restricted to the two specific table ARNs and required actions only) would be more correct for a production system. `AmazonDynamoDBFullAccess` was used here for development speed - documented as a follow-up, not implemented.
+- **Known deviation from least-privilege:** a scoped custom policy (restricted to the two specific table ARNs and required actions only) would be more correct for a production system. `AmazonDynamoDBFullAccess` was used here for development.
 
 **ntfy.sh** (third-party, not AWS)
 Push notification delivery for detected price/stock changes and scraping failures.
 
-- **Why not Amazon SES:** SES was initially considered for email notifications, but messages were not reliably reaching recipients despite successful send requests from SES. Troubleshooting email deliverability would require additional configuration, such as domain verification and email authentication (SPF/DKIM/DMARC), which was outside the scope of the project. ntfy.sh was used instead because it provides simple HTTP-based push notifications without requiring email infrastructure.
+- **Why not Amazon SES:** SES was initially considered for email notifications, but messages were not reliably reaching recipients despite successful send requests from SES. Troubleshooting email deliverability would require additional configuration, such as domain verification and email authentication (SPF/DKIM/DMARC), which was outside the scope of the project. ntfy.sh was used instead because it provides simple HTTP based push notifications without requiring email infrastructure.
 - **Note:** ntfy topics rely on the topic name for access control, meaning anyone with the topic name can read or send messages. Separate topics are used for alerts and errors to limit exposure if one is compromised.
 
 ---
 
-## Installation
-
-This project runs entirely on AWS infrastructure - there's no local app to install. To recreate it:
 
 ## Installation
 
-This project runs entirely on AWS infrastructure — there's no local app to install. To recreate it:
+This project runs entirely on AWS infrastructure, there's no local app to install. To recreate it:
 
 1. Create two DynamoDB tables (see schemas above: `book_history`, `tracked_books`)
 2. Create a Lambda function (Python 3.10)
@@ -123,7 +120,7 @@ The project is currently operated through the AWS Console. A CLI or UI is not pr
 - No CloudWatch Alarm coverage for total function failure. Currently only per-book failures inside the loop are caught and reported
 - No automated tests
 - Book list must be managed manually via the DynamoDB console; a small script or API for adding books would reduce friction at larger scale
-- Email notifications (SES) were abandoned due to DMARC alignment failures when sending from a non-owned domain; revisiting this would require a verified custom domain
+- Email notifications (SES) were abandoned due to DMARC alignment failures when sending from a non-owned domain. Revisiting this would require a verified custom domain
 
 ---
 
