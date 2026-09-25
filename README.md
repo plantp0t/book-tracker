@@ -1,26 +1,57 @@
 # Book Price & Stock Tracker
 
+## Why I built it
+
+Checking prices and stock manually is repetitive. I wanted the process to run itself and only notify me when something needs my attention, like a price drop a restock or an error, not "nothing changed today."
+
 ## Project Summary
 
 A serverless price and stock tracker for books from Adrion bookstore. It runs automatically once a day, scrapes a configurable list of book pages, detects price drops (≥5%) and restocks, and sends notifications via ntfy. Built on AWS (Lambda, DynamoDB, EventBridge) as a learning project covering serverless architecture, web scraping, and cloud debugging.
 
 ---
 
+## What happens automatically
+
+1. EventBridge triggers the Lambda every day at 13:00 UTC
+2. Lambda fetches each tracked book's page
+3. Current price/stock is compared against the latest stored state
+4. Changes are saved to DynamoDB
+5. Price drops (≥5%) and restocks trigger a push notification via ntfy
+6. **Failure isolation:** each book is checked independently. If one book fails to scrape, the error is reported and the remaining books are still checked.
+
+---
+
+## Example notifications
+
+**Restock alert**
+
+![Restock notification](screenshots/ntfy-alerts.jpeg)
+
+**Notification history**
+
+![Notification history in ntfy](screenshots/ntfy-alerts1.jpeg)
+
+---
+
 ## Architecture
+
 
 ```mermaid
 flowchart TD
-    EB["EventBridge<br/>cron: 0 13 * * ? *<br/>(daily, 13:00 UTC)"] -->|invokes| L
+    EB["EventBridge<br/>Daily at 13:00 UTC)"] -->|invokes| L
 
     subgraph L["Lambda: book-scraper"]
         direction TB
         L1["Runtime: Python 3.10<br/>Timeout: 30s"]
-        L2["Memory: 128MB<br/>Architecture: x86_64"]
     end
 
-    L -->|reads| TB[("tracked_books<br/>PK: book_id")]
+    TB[("tracked_books<br/>PK: book_id<br/>url · active")] -->|book URLs| L
+    L -->|scrapes| A["Adrion<br/>book pages"]
+
     L -->|reads/writes| BH[("book_history<br/>PK: book_id<br/>SK: date")]
-    L -->|on change detected / on failure| NTFY["ntfy.sh<br/>(2 topics: alerts, errors)"]
+
+    L -->|price drop / restock| N1["ntfy.sh<br/>Alerts topic"]
+    L -->|scraping failure| N2["ntfy.sh<br/>Errors topic"]
 ```
 
 ### Services Used
@@ -99,7 +130,7 @@ The project is currently operated through the AWS Console. A CLI or UI is not pr
 
 - Automated daily scraping - no manual trigger needed
 - Price-drop detection with a configurable threshold (≥5%)
-- Restock detection (stock transitioning from 0 - available)
+- Restock detection (stock transitioning from 0  → available)
 - Per-book error isolation - one book failing to scrape doesn't stop the rest
 - Dynamic book list - add/remove/pause tracked books without redeploying code
 - Push notifications via ntfy, split into separate alerts and errors channels
@@ -114,13 +145,12 @@ The project is currently operated through the AWS Console. A CLI or UI is not pr
 
 ---
 
-## Known Limitations / Future Improvements
+## Known limitations & next steps
 
 - IAM permissions use `AmazonDynamoDBFullAccess` rather than a scoped least-privilege policy
 - No CloudWatch Alarm coverage for total function failure. Currently only per-book failures inside the loop are caught and reported
 - No automated tests
 - Book list must be managed manually via the DynamoDB console; a small script or API for adding books would reduce friction at larger scale
-- Email notifications (SES) were abandoned due to DMARC alignment failures when sending from a non-owned domain. Revisiting this would require a verified custom domain
 
 ---
 
